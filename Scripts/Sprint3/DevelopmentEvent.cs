@@ -1,9 +1,8 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Timers;
 using System;
-
 
 public class DevelopmentEvent : MonoBehaviour
 {
@@ -21,7 +20,7 @@ public class DevelopmentEvent : MonoBehaviour
     bool conversionError = false;
 
 
-    double countdown = -1.0d;
+    float countdown = -1.0f;
 
     bool timerWasScheduled = false;
 
@@ -29,10 +28,10 @@ public class DevelopmentEvent : MonoBehaviour
 
     bool hasEnded = false;
 
-    public void setEventData(GameObject cas,string eventCommand)
+    public void setEventData(GameObject cas, string eventCommand)
     {
         this.cas = cas;
-        retrieveDataFromCommand(eventCommand,ref this.nameOfEvent, ref this.eventDay, ref this.eventHour,ref this.eventMinute,ref this.durationOfEvent);
+        retrieveDataFromCommand(eventCommand, ref this.nameOfEvent, ref this.eventDay, ref this.eventHour, ref this.eventMinute, ref this.durationOfEvent);
         if (!conversionError)
             schedule();
         else
@@ -68,7 +67,7 @@ public class DevelopmentEvent : MonoBehaviour
                 if (start + 1 < end - 1)
                     dataArray[currentData] = eventCommand.Substring(start + 1, (end - 1) - (start + 1) + 1);
                 else
-                    dataArray[currentData] = "none"; //En caso de que el campo no esté especificado, por defecto tenemos el string none
+                    dataArray[currentData] = "None"; //En caso de que el campo no esté especificado, por defecto tenemos el string none
 
                 currentData++;
             }
@@ -81,31 +80,31 @@ public class DevelopmentEvent : MonoBehaviour
         //Se verifica que en las conversiones de string a los tipos de datos correspondientes no ocurra ningun error
         //con la variable errorConverting
 
-        if (dataArray[0] == "none")
+        if (dataArray[0] == "None")
             nameOfEvent = "evento";
         else
             nameOfEvent = dataArray[0];
 
         //Debug.Log("Nombre del evento: "+nameOfEvent);
 
-        if (dataArray[1] == "none")
+        if (dataArray[1] == "None")
             eventDay = "hoy";
         else
             eventDay = dataArray[1];
 
         //Debug.Log("Dia del evento: "+eventDay);
 
-        if (dataArray[2] == "none") 
-        { 
+        if (dataArray[2] == "None")
+        {
             eventHour = DateTime.Now.Hour;
-            eventMinute = DateTime.Now.Minute; 
+            eventMinute = DateTime.Now.Minute;
         }
         else
         {
             //Debug.Log(dataArray[2].Substring(0, 2));
             //Debug.Log(dataArray[2].Substring(3, 2));
-            conversionError = !(Int32.TryParse(dataArray[2].Substring(0,2), out eventHour));
-            conversionError = !(Int32.TryParse(dataArray[2].Substring(3,2), out eventMinute));
+            conversionError = !(Int32.TryParse(dataArray[2].Substring(0, 2), out eventHour));
+            conversionError = !(Int32.TryParse(dataArray[2].Substring(3, 2), out eventMinute));
 
         }
 
@@ -113,7 +112,7 @@ public class DevelopmentEvent : MonoBehaviour
         //Debug.Log("Hora de activacion del evento: "+eventHour);
         //Debug.Log("Minuto de activacion del evento: " + eventMinute);
 
-        if (dataArray[3] == "none")
+        if (dataArray[3] == "None")
             durationOfEvent = 0;
         else
             conversionError = !(Double.TryParse(dataArray[3], out durationOfEvent));
@@ -121,30 +120,21 @@ public class DevelopmentEvent : MonoBehaviour
 
         //Debug.Log("Duracion del evento: "+durationOfEvent);
 
-        if (nameOfEvent=="reunion" || nameOfEvent=="reunión") specialEvent = true;
+        if (nameOfEvent == "reunion" || nameOfEvent == "reunión") specialEvent = true;
     }
 
 
-    void Update()
+    private IEnumerator EventCycle()
     {
-        if (!hasEnded)
-        {
-            if (countdown > 0)
-                countdown -= Time.deltaTime;
-            else
-            {
-                if (timerWasScheduled && !timerWasSetOff)
-                {
-                    if (specialEvent)
-                        StartCoroutine(specialSetOff());
-                    setOff();
-                }
-                else
-                {
-                    endEvent();
-                }
-            }
-        }
+        //Espera a que se cumpla el tiempo hasta la activacion del evento
+        yield return new WaitForSeconds(countdown);
+        if (specialEvent)
+            StartCoroutine(specialSetOff());
+        setOff();
+        //Espera a que se cumpla el tiempo hasta la finalización del evento.
+        yield return new WaitForSeconds(countdown);
+        if (!hasEnded) //Se pregunta si no termino ya que en specialSetOff puede finalizar antes del tiempo indicado.
+            endEvent();
     }
 
     public void schedule()
@@ -153,27 +143,38 @@ public class DevelopmentEvent : MonoBehaviour
         timerWasScheduled = true;
         timerWasSetOff = false;
 
-        DateTime eventStartDate = new DateTime(DateTime.Now.Year,DateTime.Now.Month,DateTime.Now.Day,eventHour,eventMinute,0);
+        DateTime eventStartDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day, eventHour, eventMinute, 0);
 
-        countdown = (eventStartDate - DateTime.Now).TotalSeconds;
+        countdown = (float)(eventStartDate - DateTime.Now).TotalSeconds;
+
+        StartCoroutine(EventCycle());
+
+        string minute;
+        string hour;
+        if (this.eventMinute < 10) minute = "0" + this.eventMinute.ToString();
+        else minute = this.eventMinute.ToString();
+
+        if (this.eventHour < 10) hour = "0" + this.eventHour.ToString();
+        else hour = this.eventHour.ToString();
 
         cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("El evento " + this.nameOfEvent + " fue correctamente programado para el dia: " +
-            ""+this.eventDay+" a la hora "+this.eventHour+":"+this.eventMinute+" con duracion "+this.durationOfEvent);
+            "" + this.eventDay + " a la hora " + hour + ":" + minute + " con duracion " + this.durationOfEvent + " minutos.");
     }
 
     public void setOff()
     {
 
-        timerWasSetOff = true;
-        countdown = durationOfEvent * 60; //Como rasa nos da minutos, tenemos que convertirlo a segundos.
-        cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("El evento: " + this.nameOfEvent + " esta comenzando con duracion aproximada " + this.durationOfEvent+" minutos.");
+        //timerWasSetOff = true;
+        countdown = (float)durationOfEvent * 60; //Como rasa nos da minutos, tenemos que convertirlo a segundos.
+        cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("El evento: " + this.nameOfEvent + " esta comenzando con duracion aproximada " + this.durationOfEvent + " minutos.");
 
     }
 
     public void endEvent()
     {
         hasEnded = true;
-        cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("El evento: " + this.nameOfEvent + " acaba de finalizar");
+        cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("El evento: " + this.nameOfEvent + " acaba de finalizar.");
+        BotMovement.eventStart = true;
     }
 
     public void receiveMessage(string message)
@@ -184,9 +185,9 @@ public class DevelopmentEvent : MonoBehaviour
     public IEnumerator specialSetOff()
     {
         //se avisa que esta empezando la reunion
-        cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("Entro a special set off");
-
-        for (int i=0;i<3;i++)
+        //cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("Entro a special set off.");
+        BotMovement.eventStart = true;
+        for (int i = 0; i < 3; i++)
         {
             Debug.Log("Ciclo del for numero " + i);
             receivedMessageFromObserver = "";
@@ -202,12 +203,17 @@ public class DevelopmentEvent : MonoBehaviour
             replyFromRasa = rasa.respuesta;
             rasa.respuesta = "";
             Debug.Log("Respuesta de rasa " + replyFromRasa);
+            int maximaCantidadDeIntentos = 6;
+            int intentos = 0;
             //Cuando contiene !p significa que es una pregunta que debe ser mostrada en el chat/por voz
-            while (replyFromRasa.Contains("!p_"))
+            while (!replyFromRasa.Contains("!t_") && intentos < maximaCantidadDeIntentos)
             {
-                cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat(replyFromRasa.Substring(3));
+                if (replyFromRasa.Contains("!t_") || replyFromRasa.Contains("!e_") || replyFromRasa.Contains("!p_"))
+                    cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat(replyFromRasa.Substring(3));
+                else
+                    cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat(replyFromRasa);
                 //Tengo que esperar a recibir la respuesta del individuo
-                yield return new WaitUntil(() => receivedMessageFromObserver!="");
+                yield return new WaitUntil(() => receivedMessageFromObserver != "");
                 rasa.message = receivedMessageFromObserver;
                 //tiene que volver a estar vacio para la siguiente respuesta
                 receivedMessageFromObserver = "";
@@ -218,13 +224,14 @@ public class DevelopmentEvent : MonoBehaviour
                 yield return new WaitUntil(() => rasa.respuesta != "");
                 replyFromRasa = rasa.respuesta;
                 rasa.respuesta = "";
+                intentos++;
             }
-            if (replyFromRasa.Contains("!t_"))
-                if (i<2)
-                    cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("Pasamos a charlar con el siguiente participante");
-                else
-                    endEvent();
-                    
+            //if (replyFromRasa.Contains("!t_"))
+            if (i < 2)
+                cas.GetComponent<CalendarAdministratorScript>().sendMessageToGlobalChat("Pasamos a charlar con el siguiente participante");
+            else
+                endEvent();
+
         }
     }
 
