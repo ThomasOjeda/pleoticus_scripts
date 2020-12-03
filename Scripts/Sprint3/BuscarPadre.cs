@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -24,8 +24,9 @@ public class BuscarPadre : MonoBehaviour
                 this.transform.parent = jugador.transform;
                 this.encontrado = true;
                 jugador.name = "PrefabJugador(Clone) - Voice Asignado";
-                //this.transform = jugador.transform;                
+                this.transform.position = jugador.transform.position;                
             }
         }
     }
 }
+
